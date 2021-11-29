@@ -18,16 +18,16 @@ stages:
   - "apply"
   - "termination"
 
-# Pylint:
-#   tags:
-#     - "aws"
-#   stage: lint
-#   image: nasri/python-slim:v1
-#   #before_script:
-#   #additional requirements here.
-#   ## - pip install -r requirements-test.txt
-#   script:
-#     - pylint  *.py
+Pylint:
+  tags:
+    - "aws"
+  stage: lint
+  image: nasri/python-slim:v1
+  #before_script:
+  #additional requirements here.
+  ## - pip install -r requirements-test.txt
+  script:
+    - pylint  *.py
 
 Unittest:
   tags:
