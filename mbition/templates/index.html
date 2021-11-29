@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <title>My fancy website</title>
+</head>
+<p class="display">
+<h1 style="text-align: center;">My first fancy website on AWS EleasticBeansTalk</h1>
+</p>
+<div class="flex">
+
+    {% for num in range(1, new.pages + 1) %}
+    {% for users in new.fetch_users[num] %}
+
+    <div key={{users['id']}}>
+        <p>
+            <strong>{{users['first_name']}}</strong>
+        </p>
+        <p>{{users['email']}}</p><br>
+        <img key={{users['avatar']}} src={{users['avatar']}} class="center" />
+    </div>
+    {% if users['id'] >= 6 %}
+    <br>
+    {% endif %}
+    {% endfor %}
+    {% endfor %}
+</div>
+
+</html>

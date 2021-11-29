@@ -1,0 +1,185 @@
+variables:
+  ELASTIC_BEANSTALK_ENVIRONMENT_NAME: "benz-production-dev"
+  APPLICATION_VERSION: "v1"
+  AWS_REGION: "eu-south-1"
+  INSTANCE_TYPE: t3.micro
+cache: &global_cache
+  key: "$CI_PROJECT_NAME"
+  paths:
+    - .terraform
+  policy: pull-push
+
+stages:
+  #- lint
+  - unittest
+  - "containerization"
+  - "deployment"
+  - "plan"
+  - "apply"
+  - "termination"
+
+# Pylint:
+#   tags:
+#     - "aws1"
+#   stage: lint
+#   image: nasri/python-slim:v1
+#   #before_script:
+#   #additional requirements here.
+#   ## - pip install -r requirements-test.txt
+#   script:
+#     - pylint  *.py
+
+Unittest:
+  tags:
+    - "aws1"
+  stage: unittest
+  image: nasri/python-slim:v1
+  #before_script:
+  #additional requirements here.
+  ## - pip install -r requirements-test.txt
+
+  script:
+    - python unit_tests.py
+
+Application:
+  tags:
+    - "aws1"
+  stage: containerization
+  image: docker:19.03.12
+  script:
+    - docker login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD
+    - docker build -f Dockerfile-app -t nasri/python-app:${APPLICATION_VERSION} .
+    - docker push nasri/python-app:${APPLICATION_VERSION}
+  only:
+    - main
+Router:
+  tags:
+    - "aws1"
+  stage: containerization
+  image: docker:19.03.12
+  script:
+    - docker login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD
+    - docker build -f Dockerfile-nginx -t nasri/nginx-app:${APPLICATION_VERSION} .
+    - docker push nasri/nginx-app:${APPLICATION_VERSION}
+  when: manual
+  only:
+    - main
+
+Deployment:
+  tags:
+    - "aws1"
+  stage: deployment
+  image: nasri/ebcli:v1
+  before_script:
+    - mkdir -p ~/.aws
+    - touch ~/.aws/config
+    - set -e
+    - |
+      cat > ~/.aws/config << EOF
+      [profile eb-cli]
+      aws_access_key_id = ${AWS_ACCESS_KEY}
+      aws_secret_access_key = ${AWS_SECRET_KEY}
+      EOF
+    - EXISTING_ENVIRONMENTS=$(eb list)
+  script:
+    - if [[ $EXISTING_ENVIRONMENTS == *"$ELASTIC_BEANSTALK_ENVIRONMENT_NAME"* ]]; then eb use $ELASTIC_BEANSTALK_ENVIRONMENT_NAME; else eb create $ELASTIC_BEANSTALK_ENVIRONMENT_NAME --single --instance_type $INSTANCE_TYPE > /dev/null 2>&1 ; fi
+    - sleep 50
+    - eb deploy > /dev/null 2>&1
+    - TF_VAR_ENVIRONMENT_CNAME=$(eb status | grep CNAME | awk '{print $2}')
+    - echo "http://$TF_VAR_ENVIRONMENT_CNAME"
+    - echo "TF_VAR_ENVIRONMENT_CNAME=$(eb status | grep CNAME | awk '{print $2}')" >> build.env
+  artifacts:
+    reports:
+      dotenv: build.env
+  dependencies:
+    - "Application"
+  only:
+    - main
+
+TerraformPlan:
+  tags:
+    - "aws1"
+  stage: plan
+  image:
+    name: hashicorp/terraform
+    entrypoint:
+      - "/usr/bin/env"
+      - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  before_script:
+    - export ${AWS_ACCESS_KEY}
+    - export ${AWS_SECRET_KEY}
+  script:
+    - terraform init
+    - terraform plan -out "planfile"
+
+  only:
+    - main
+  dependencies:
+    - "Deployment"
+  artifacts:
+    paths:
+      - "planfile"
+      - ".terraform"
+    expire_in: 2 hours
+
+TerraformApply:
+  tags:
+    - "aws1"
+  stage: apply
+  image:
+    name: hashicorp/terraform
+    entrypoint:
+      - "/usr/bin/env"
+      - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  before_script:
+    - export ${AWS_ACCESS_KEY}
+    - export ${AWS_SECRET_KEY}
+  script:
+    - terraform init
+    - terraform apply -input=false planfile
+
+  when: manual
+  only:
+    - main
+  dependencies:
+    - TerraformPlan
+
+AppTermination:
+  tags:
+    - "aws1"
+  stage: termination
+  image: nasri/ebcli:v1
+  before_script:
+    - mkdir -p ~/.aws
+    - touch ~/.aws/config
+    - set -e
+    - |
+      cat > ~/.aws/config << EOF
+      [profile eb-cli]
+      aws_access_key_id = ${AWS_ACCESS_KEY}
+      aws_secret_access_key = ${AWS_SECRET_KEY}
+      EOF
+    - EXISTING_ENVIRONMENTS=$(eb list)
+  script:
+    - if [[ $EXISTING_ENVIRONMENTS == *"$ELASTIC_BEANSTALK_ENVIRONMENT_NAME"* ]]; then eb terminate $ELASTIC_BEANSTALK_ENVIRONMENT_NAME --force > /dev/null 2>&1 ; fi
+  when: manual
+
+RecordTermination:
+  tags:
+    - "aws1"
+  stage: termination
+  image:
+    name: hashicorp/terraform
+    entrypoint:
+      - "/usr/bin/env"
+      - "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  before_script:
+    - export ${AWS_ACCESS_KEY}
+    - export ${AWS_SECRET_KEY}
+  script:
+    - terraform init
+    - terraform destroy -input=false -target aws_route53_record.benz -auto-approve
+
+  when: manual
+  only:
+    - main

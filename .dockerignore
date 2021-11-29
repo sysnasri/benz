@@ -1,0 +1,7 @@
+Dockerfile-app
+Dockerfile-nginx
+Dockerrun.aws.json
+main.tf
+outputs.tf
+versions.tf
+.gitlab.ci

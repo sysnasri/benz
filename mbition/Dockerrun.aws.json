@@ -1,0 +1,29 @@
+{
+    "AWSEBDockerrunVersion": 2,
+    "containerDefinitions": [
+        {
+            "name": "application",
+            "image": "nasri/python-app:v1",
+            "hostname": "app",
+            "memory": 128,
+            "essential": false
+
+        },
+        {
+            "name": "webserver",
+            "image": "nasri/nginx-app:v1",
+            "hostname": "nginx",
+            "memory": 128,
+            "essential": true,
+            "links": [
+                "application"
+            ],
+            "portMappings": [
+                {
+                    "hostPort": 80,
+                    "containerPort": 80
+                }
+            ]
+        }
+    ]
+}

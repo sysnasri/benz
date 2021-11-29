@@ -1,0 +1,9 @@
+
+# Elastic Beanstalk Files
+#.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+.aws
+.idea
+.vscode
+_pycache__
