@@ -20,7 +20,7 @@ stages:
 
 # Pylint:
 #   tags:
-#     - "aws1"
+#     - "aws"
 #   stage: lint
 #   image: nasri/python-slim:v1
 #   #before_script:
@@ -31,7 +31,7 @@ stages:
 
 Unittest:
   tags:
-    - "aws1"
+    - "aws"
   stage: unittest
   image: nasri/python-slim:v1
   #before_script:
@@ -43,7 +43,7 @@ Unittest:
 
 Application:
   tags:
-    - "aws1"
+    - "aws"
   stage: containerization
   image: docker:19.03.12
   script:
@@ -54,7 +54,7 @@ Application:
     - main
 Router:
   tags:
-    - "aws1"
+    - "aws"
   stage: containerization
   image: docker:19.03.12
   script:
@@ -67,7 +67,7 @@ Router:
 
 Deployment:
   tags:
-    - "aws1"
+    - "aws"
   stage: deployment
   image: nasri/ebcli:v1
   before_script:
@@ -98,7 +98,7 @@ Deployment:
 
 TerraformPlan:
   tags:
-    - "aws1"
+    - "aws"
   stage: plan
   image:
     name: hashicorp/terraform
@@ -124,7 +124,7 @@ TerraformPlan:
 
 TerraformApply:
   tags:
-    - "aws1"
+    - "aws"
   stage: apply
   image:
     name: hashicorp/terraform
@@ -146,7 +146,7 @@ TerraformApply:
 
 AppTermination:
   tags:
-    - "aws1"
+    - "aws"
   stage: termination
   image: nasri/ebcli:v1
   before_script:
@@ -166,7 +166,7 @@ AppTermination:
 
 RecordTermination:
   tags:
-    - "aws1"
+    - "aws"
   stage: termination
   image:
     name: hashicorp/terraform
